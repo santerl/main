@@ -1,0 +1,1492 @@
+<!--
+  ============================================================
+  VALUE OF CHANGE ASSESSMENT WIDGET
+  For: Heidi Sawyer /next page
+  ============================================================
+
+  IMPLEMENTATION NOTES:
+  - Paste this entire file into a custom code block on your /next page.
+  - The widget assumes an existing form with id="next-step-form" elsewhere
+    on the same page. The CTA buttons scroll smoothly to that element.
+  - If your form uses a different id, update FORM_ANCHOR_ID below.
+  - All calculations are client-side. No data leaves the browser.
+  - Adjust colours in the :root block (CSS custom properties).
+  - Adjust slider labels in the JS CONFIG section near the bottom.
+  - Adjust scoring bands and feedback text in the JS CONFIG section.
+  - No external dependencies. No cookies. No tracking.
+
+  BROWSER SUPPORT: All modern browsers. IE not supported.
+  ============================================================
+-->
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Value of Change Assessment</title>
+<style>
+  /* ============================================================
+     COLOUR VARIABLES — adjust here to match your brand
+     ============================================================ */
+  :root {
+    --navy:         #0f1b2d;
+    --navy-mid:     #172538;
+    --navy-light:   #1e3350;
+    --cream:        #f5f0e8;
+    --cream-warm:   #ede6d6;
+    --cream-deep:   #ddd4be;
+    --gold:         #b89a5a;
+    --gold-light:   #cdb07a;
+    --gold-pale:    #e8d9b4;
+    --offwhite:     #faf8f4;
+    --text-primary: #f5f0e8;
+    --text-muted:   #a8b5c2;
+    --text-dark:    #1a2a3a;
+    --text-body:    #2e3d4f;
+
+    /* Progress bar colours — restrained, not alarming */
+    --bar-low:      #8aaa96;   /* soft sage */
+    --bar-moderate: #b89a5a;   /* muted gold */
+    --bar-high:     #c87f3a;   /* warm amber */
+    --bar-veryhigh: #a85050;   /* muted rose */
+
+    --radius:       6px;
+    --radius-lg:    12px;
+    --transition:   0.25s ease;
+    --shadow:       0 4px 24px rgba(0,0,0,0.18);
+    --shadow-card:  0 2px 16px rgba(0,0,0,0.22);
+  }
+
+  /* ============================================================
+     RESET & BASE
+     ============================================================ */
+  #voc-widget *,
+  #voc-widget *::before,
+  #voc-widget *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  #voc-widget {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--navy);
+    color: var(--text-primary);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #voc-widget .voc-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  #voc-widget h1,
+  #voc-widget h2,
+  #voc-widget h3,
+  #voc-widget h4 {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-weight: normal;
+    letter-spacing: 0.01em;
+  }
+
+  #voc-widget p {
+    font-size: 1.0625rem;
+    line-height: 1.75;
+  }
+
+  /* ============================================================
+     SECTION 1 — HERO
+     ============================================================ */
+  #voc-widget .voc-hero {
+    padding: 96px 0 80px;
+    text-align: center;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-mid) 100%);
+    border-bottom: 1px solid rgba(184,154,90,0.15);
+  }
+
+  #voc-widget .voc-hero .voc-eyebrow {
+    font-family: 'Georgia', serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 24px;
+    display: block;
+  }
+
+  #voc-widget .voc-hero h1 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    color: var(--cream);
+    max-width: 720px;
+    margin: 0 auto 24px;
+    line-height: 1.2;
+  }
+
+  #voc-widget .voc-hero .voc-hero-sub {
+    font-size: clamp(1.0625rem, 2vw, 1.25rem);
+    color: var(--gold-light);
+    max-width: 600px;
+    margin: 0 auto 32px;
+    font-style: italic;
+  }
+
+  #voc-widget .voc-hero .voc-hero-body {
+    font-size: 1rem;
+    color: var(--text-muted);
+    max-width: 580px;
+    margin: 0 auto 48px;
+  }
+
+  #voc-widget .voc-hero-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  /* ============================================================
+     BUTTONS
+     ============================================================ */
+  #voc-widget .voc-btn-primary {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--navy);
+    font-family: 'Georgia', serif;
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+    padding: 16px 40px;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--transition), transform var(--transition);
+  }
+
+  #voc-widget .voc-btn-primary:hover,
+  #voc-widget .voc-btn-primary:focus {
+    background: var(--gold-light);
+    transform: translateY(-1px);
+    outline: 2px solid var(--gold-pale);
+    outline-offset: 3px;
+  }
+
+  #voc-widget .voc-btn-secondary {
+    display: inline-block;
+    background: transparent;
+    color: var(--cream-warm);
+    font-family: 'Georgia', serif;
+    font-size: 0.9375rem;
+    font-style: italic;
+    letter-spacing: 0.02em;
+    padding: 8px 4px;
+    border: none;
+    border-bottom: 1px solid rgba(184,154,90,0.4);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color var(--transition), border-color var(--transition);
+  }
+
+  #voc-widget .voc-btn-secondary:hover,
+  #voc-widget .voc-btn-secondary:focus {
+    color: var(--gold-light);
+    border-bottom-color: var(--gold);
+    outline: none;
+  }
+
+  /* ============================================================
+     SECTION 2 — PROCESS BRIDGE
+     ============================================================ */
+  #voc-widget .voc-bridge {
+    padding: 80px 0;
+    background: var(--navy-mid);
+    border-bottom: 1px solid rgba(184,154,90,0.12);
+  }
+
+  #voc-widget .voc-bridge-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 64px;
+    align-items: start;
+  }
+
+  #voc-widget .voc-bridge h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    color: var(--cream);
+    margin-bottom: 28px;
+    line-height: 1.3;
+  }
+
+  #voc-widget .voc-bridge p {
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    font-size: 1rem;
+  }
+
+  #voc-widget .voc-bridge p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Flow diagram */
+  #voc-widget .voc-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding-top: 8px;
+  }
+
+  #voc-widget .voc-flow-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #voc-widget .voc-flow-node {
+    background: var(--navy-light);
+    border: 1px solid rgba(184,154,90,0.3);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    flex: 1;
+    text-align: center;
+  }
+
+  #voc-widget .voc-flow-node span {
+    font-size: 0.875rem;
+    color: var(--cream-warm);
+    letter-spacing: 0.04em;
+  }
+
+  #voc-widget .voc-flow-node.voc-flow-final {
+    background: var(--navy-light);
+    border-color: var(--gold);
+  }
+
+  #voc-widget .voc-flow-node.voc-flow-final span {
+    color: var(--gold-light);
+    font-style: italic;
+  }
+
+  #voc-widget .voc-flow-connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 0;
+    gap: 0;
+  }
+
+  #voc-widget .voc-flow-connector-line {
+    width: 1px;
+    height: 24px;
+    background: rgba(184,154,90,0.3);
+  }
+
+  #voc-widget .voc-flow-connector-arrow {
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid rgba(184,154,90,0.4);
+  }
+
+  /* ============================================================
+     SECTION 3 — CALCULATOR
+     ============================================================ */
+  #voc-widget .voc-calculator {
+    padding: 80px 0;
+    background: var(--navy);
+  }
+
+  #voc-widget .voc-section-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  #voc-widget .voc-section-header h2 {
+    font-size: clamp(1.625rem, 3.5vw, 2.25rem);
+    color: var(--cream);
+    margin-bottom: 16px;
+    line-height: 1.3;
+  }
+
+  #voc-widget .voc-section-header p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    max-width: 520px;
+    margin: 0 auto;
+    font-style: italic;
+  }
+
+  /* Two-card grid */
+  #voc-widget .voc-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+
+  #voc-widget .voc-card {
+    background: var(--navy-mid);
+    border: 1px solid rgba(184,154,90,0.18);
+    border-radius: var(--radius-lg);
+    padding: 36px 32px;
+    box-shadow: var(--shadow-card);
+  }
+
+  #voc-widget .voc-card-title {
+    font-size: 1.25rem;
+    color: var(--cream);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  #voc-widget .voc-card-intro {
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    font-style: italic;
+    line-height: 1.6;
+  }
+
+  /* Sliders */
+  #voc-widget .voc-slider-group {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    margin-bottom: 36px;
+  }
+
+  #voc-widget .voc-slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  #voc-widget .voc-slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  #voc-widget .voc-slider-label {
+    font-size: 0.9rem;
+    color: var(--cream-warm);
+    line-height: 1.4;
+  }
+
+  #voc-widget .voc-slider-value {
+    font-size: 1.125rem;
+    color: var(--gold);
+    font-family: 'Georgia', serif;
+    min-width: 24px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  #voc-widget .voc-slider-track {
+    position: relative;
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    margin-top: 4px;
+  }
+
+  #voc-widget .voc-slider-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: var(--gold);
+    border-radius: 3px;
+    pointer-events: none;
+    transition: width 0.1s ease;
+  }
+
+  /* Native range input — styled to overlay the track */
+  #voc-widget input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+  }
+
+  #voc-widget input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 2px solid var(--gold);
+    cursor: pointer;
+    transition: transform var(--transition), background var(--transition);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  #voc-widget input[type="range"]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--cream);
+    border: 2px solid var(--gold);
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  #voc-widget input[type="range"]:hover::-webkit-slider-thumb,
+  #voc-widget input[type="range"]:focus::-webkit-slider-thumb {
+    transform: scale(1.15);
+    background: var(--gold-pale);
+  }
+
+  #voc-widget input[type="range"]:focus {
+    outline: none;
+  }
+
+  #voc-widget input[type="range"]:focus::-webkit-slider-thumb {
+    outline: 2px solid var(--gold-pale);
+    outline-offset: 2px;
+  }
+
+  /* Score display */
+  #voc-widget .voc-score-panel {
+    border-top: 1px solid rgba(184,154,90,0.2);
+    padding-top: 28px;
+  }
+
+  #voc-widget .voc-score-label {
+    font-size: 0.8125rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  #voc-widget .voc-score-number {
+    font-size: 2.25rem;
+    color: var(--cream);
+    font-family: 'Georgia', serif;
+    line-height: 1;
+    margin-bottom: 16px;
+  }
+
+  #voc-widget .voc-score-number span.voc-score-denom {
+    font-size: 1.125rem;
+    color: var(--text-muted);
+  }
+
+  /* Progress bar */
+  #voc-widget .voc-progress-track {
+    height: 10px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+
+  #voc-widget .voc-progress-fill {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    width: 0%;
+  }
+
+  #voc-widget .voc-score-band {
+    font-size: 0.875rem;
+    color: var(--gold);
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+    font-style: italic;
+  }
+
+  #voc-widget .voc-score-feedback {
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+    line-height: 1.65;
+  }
+
+  /* ============================================================
+     SECTION 4 — COMBINED SUMMARY
+     ============================================================ */
+  #voc-widget .voc-summary {
+    padding: 0 0 80px;
+    background: var(--navy);
+  }
+
+  #voc-widget .voc-summary-panel {
+    background: var(--navy-light);
+    border: 1px solid rgba(184,154,90,0.25);
+    border-radius: var(--radius-lg);
+    padding: 48px 40px;
+    box-shadow: var(--shadow);
+  }
+
+  #voc-widget .voc-summary-panel h3 {
+    font-size: 1.5rem;
+    color: var(--cream);
+    margin-bottom: 32px;
+    line-height: 1.3;
+  }
+
+  #voc-widget .voc-summary-scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+
+  #voc-widget .voc-summary-score-item {
+    text-align: center;
+    padding: 24px 16px;
+    background: rgba(255,255,255,0.04);
+    border-radius: var(--radius);
+    border: 1px solid rgba(184,154,90,0.12);
+  }
+
+  #voc-widget .voc-summary-score-item .voc-ss-label {
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  #voc-widget .voc-summary-score-item .voc-ss-number {
+    font-size: 2rem;
+    color: var(--cream);
+    font-family: 'Georgia', serif;
+    line-height: 1;
+  }
+
+  #voc-widget .voc-summary-score-item .voc-ss-denom {
+    font-size: 1rem;
+    color: var(--text-muted);
+  }
+
+  #voc-widget .voc-summary-score-item.voc-ss-combined {
+    background: rgba(184,154,90,0.07);
+    border-color: rgba(184,154,90,0.3);
+  }
+
+  #voc-widget .voc-summary-score-item.voc-ss-combined .voc-ss-number {
+    color: var(--gold-light);
+  }
+
+  #voc-widget .voc-summary-progress {
+    margin-bottom: 20px;
+  }
+
+  #voc-widget .voc-summary-band {
+    font-size: 0.9375rem;
+    color: var(--gold);
+    font-style: italic;
+    margin-bottom: 12px;
+    letter-spacing: 0.04em;
+  }
+
+  #voc-widget .voc-summary-feedback {
+    font-size: 1rem;
+    color: var(--text-muted);
+    line-height: 1.7;
+    max-width: 640px;
+  }
+
+  /* ============================================================
+     SECTION 5 — INVESTMENT REFLECTION
+     ============================================================ */
+  #voc-widget .voc-investment {
+    padding: 0 0 80px;
+    background: var(--navy);
+  }
+
+  #voc-widget .voc-investment-box {
+    border: 1px solid rgba(184,154,90,0.4);
+    border-radius: var(--radius-lg);
+    padding: 56px 48px;
+    background: linear-gradient(135deg, var(--navy-mid) 0%, var(--navy-light) 100%);
+    text-align: center;
+    box-shadow: var(--shadow);
+    position: relative;
+    overflow: hidden;
+  }
+
+  #voc-widget .voc-investment-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  #voc-widget .voc-investment-box h3 {
+    font-size: clamp(1.375rem, 2.5vw, 1.875rem);
+    color: var(--cream);
+    margin-bottom: 24px;
+    line-height: 1.3;
+  }
+
+  #voc-widget .voc-investment-box .voc-inv-lead {
+    font-size: 1.125rem;
+    color: var(--cream-warm);
+    margin-bottom: 24px;
+    max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.65;
+  }
+
+  #voc-widget .voc-investment-box .voc-inv-questions {
+    font-size: 1.0625rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-bottom: 12px;
+    line-height: 1.65;
+  }
+
+  #voc-widget .voc-investment-box .voc-inv-deeper {
+    font-size: 1.125rem;
+    color: var(--gold-light);
+    font-style: italic;
+    margin-bottom: 32px;
+    max-width: 540px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.65;
+  }
+
+  #voc-widget .voc-investment-box .voc-inv-support {
+    font-size: 0.9375rem;
+    color: var(--text-muted);
+    margin-bottom: 40px;
+    max-width: 520px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.7;
+  }
+
+  #voc-widget .voc-investment-note {
+    font-size: 0.8125rem;
+    color: rgba(168,181,194,0.6);
+    margin-top: 24px;
+    font-style: italic;
+    letter-spacing: 0.02em;
+  }
+
+  /* ============================================================
+     SECTION 6 — FAQ
+     ============================================================ */
+  #voc-widget .voc-faq {
+    padding: 80px 0;
+    background: var(--navy-mid);
+    border-top: 1px solid rgba(184,154,90,0.12);
+  }
+
+  #voc-widget .voc-faq h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    color: var(--cream);
+    margin-bottom: 40px;
+    line-height: 1.3;
+  }
+
+  #voc-widget .voc-faq-list {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  #voc-widget .voc-faq-item {
+    border-bottom: 1px solid rgba(184,154,90,0.15);
+  }
+
+  #voc-widget .voc-faq-item:first-child {
+    border-top: 1px solid rgba(184,154,90,0.15);
+  }
+
+  #voc-widget .voc-faq-button {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 22px 0;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    color: var(--cream);
+    font-family: 'Georgia', serif;
+    font-size: 1rem;
+    line-height: 1.4;
+    letter-spacing: 0.01em;
+    transition: color var(--transition);
+  }
+
+  #voc-widget .voc-faq-button:hover,
+  #voc-widget .voc-faq-button:focus {
+    color: var(--gold-light);
+    outline: none;
+  }
+
+  #voc-widget .voc-faq-button:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  #voc-widget .voc-faq-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    position: relative;
+    color: var(--gold);
+    transition: transform var(--transition);
+  }
+
+  #voc-widget .voc-faq-icon::before,
+  #voc-widget .voc-faq-icon::after {
+    content: '';
+    position: absolute;
+    background: currentColor;
+    border-radius: 1px;
+    transition: transform var(--transition), opacity var(--transition);
+  }
+
+  #voc-widget .voc-faq-icon::before {
+    width: 2px;
+    height: 12px;
+    top: 4px;
+    left: 9px;
+  }
+
+  #voc-widget .voc-faq-icon::after {
+    width: 12px;
+    height: 2px;
+    top: 9px;
+    left: 4px;
+  }
+
+  #voc-widget .voc-faq-button[aria-expanded="true"] .voc-faq-icon::before {
+    transform: rotate(90deg);
+    opacity: 0;
+  }
+
+  #voc-widget .voc-faq-answer {
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s ease, padding 0.35s ease;
+  }
+
+  #voc-widget .voc-faq-answer.voc-open {
+    max-height: 400px;
+    padding-bottom: 20px;
+  }
+
+  #voc-widget .voc-faq-answer p {
+    color: var(--text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.7;
+  }
+
+  /* ============================================================
+     DIVIDER / GOLD LINE
+     ============================================================ */
+  #voc-widget .voc-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(184,154,90,0.3), transparent);
+    margin: 0;
+  }
+
+  /* ============================================================
+     RESPONSIVE — MOBILE
+     ============================================================ */
+  @media (max-width: 768px) {
+    #voc-widget .voc-inner {
+      padding: 0 16px;
+    }
+
+    #voc-widget .voc-hero {
+      padding: 64px 0 56px;
+    }
+
+    /* Bridge: stack on mobile */
+    #voc-widget .voc-bridge-grid {
+      grid-template-columns: 1fr;
+      gap: 40px;
+    }
+
+    /* Cards: stack on mobile */
+    #voc-widget .voc-cards-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    #voc-widget .voc-card {
+      padding: 28px 20px;
+    }
+
+    /* Summary scores: stack on mobile */
+    #voc-widget .voc-summary-scores {
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    #voc-widget .voc-summary-panel {
+      padding: 32px 24px;
+    }
+
+    #voc-widget .voc-investment-box {
+      padding: 40px 24px;
+    }
+
+    #voc-widget .voc-faq {
+      padding: 56px 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     WIDGET ROOT — all styles and scripts are scoped within this element
+     ============================================================ -->
+<div id="voc-widget" role="main">
+
+  <!-- ============================================================
+       SECTION 1 — HERO
+       ============================================================ -->
+  <section class="voc-hero" aria-labelledby="voc-hero-heading">
+    <div class="voc-inner">
+      <span class="voc-eyebrow">Value of Change Assessment</span>
+      <h1 id="voc-hero-heading">What is the pattern already costing you?</h1>
+      <p class="voc-hero-sub">Before you choose your next step, take a moment to look at the cost of staying where you are — and the value of what could change.</p>
+      <p class="voc-hero-body">A repeating pattern rarely costs only peace of mind. It can cost energy, time, sleep, relationship closeness, decision clarity, opportunity, money, and the emotional atmosphere you carry for others.<br><br>This page will help you make the invisible cost visible.</p>
+      <div class="voc-hero-actions">
+        <!-- Primary: scrolls to calculator section -->
+        <button class="voc-btn-primary" onclick="document.getElementById('voc-calculator').scrollIntoView({behavior:'smooth'})">
+          Start the assessment
+        </button>
+        <!-- Secondary: scrolls to existing form on page -->
+        <a class="voc-btn-secondary" href="#next-step-form" onclick="vocScrollToForm(event)">
+          I'm ready to see my next step
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <div class="voc-divider"></div>
+
+  <!-- ============================================================
+       SECTION 2 — PROCESS BRIDGE
+       ============================================================ -->
+  <section class="voc-bridge" aria-labelledby="voc-bridge-heading">
+    <div class="voc-inner">
+      <div class="voc-bridge-grid">
+        <div>
+          <h2 id="voc-bridge-heading">There is a process for this</h2>
+          <p>The first step is not to blame the other person.</p>
+          <p>The first step is to see what the relationship moment has revealed.</p>
+          <p>LifeCode helps identify the Core Pattern underneath what keeps repeating.</p>
+          <p>Heidi's work helps you begin changing your relationship to that pattern, so it no longer directs your life from underneath.</p>
+        </div>
+        <!-- Flow diagram — elegant, not corporate -->
+        <div aria-label="Process flow: Relationship moment to Unownable" role="img">
+          <div class="voc-flow">
+
+            <div class="voc-flow-item">
+              <div class="voc-flow-node">
+                <span>Relationship moment</span>
+              </div>
+            </div>
+
+            <div class="voc-flow-connector" aria-hidden="true">
+              <div class="voc-flow-connector-line"></div>
+              <div class="voc-flow-connector-arrow"></div>
+            </div>
+
+            <div class="voc-flow-item">
+              <div class="voc-flow-node">
+                <span>Pattern visible</span>
+              </div>
+            </div>
+
+            <div class="voc-flow-connector" aria-hidden="true">
+              <div class="voc-flow-connector-line"></div>
+              <div class="voc-flow-connector-arrow"></div>
+            </div>
+
+            <div class="voc-flow-item">
+              <div class="voc-flow-node">
+                <span>Core Pattern</span>
+              </div>
+            </div>
+
+            <div class="voc-flow-connector" aria-hidden="true">
+              <div class="voc-flow-connector-line"></div>
+              <div class="voc-flow-connector-arrow"></div>
+            </div>
+
+            <div class="voc-flow-item">
+              <div class="voc-flow-node">
+                <span>Through You</span>
+              </div>
+            </div>
+
+            <div class="voc-flow-connector" aria-hidden="true">
+              <div class="voc-flow-connector-line"></div>
+              <div class="voc-flow-connector-arrow"></div>
+            </div>
+
+            <div class="voc-flow-item">
+              <div class="voc-flow-node voc-flow-final">
+                <span>Unownable</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="voc-divider"></div>
+
+  <!-- ============================================================
+       SECTION 3 — CALCULATOR
+       ============================================================ -->
+  <section id="voc-calculator" class="voc-calculator" aria-labelledby="voc-calc-heading">
+    <div class="voc-inner">
+
+      <div class="voc-section-header">
+        <h2 id="voc-calc-heading">The Value of Change Assessment</h2>
+        <p>Move the sliders honestly. There are no right answers. Your answers are not stored.</p>
+      </div>
+
+      <div class="voc-cards-grid">
+
+        <!-- ======================================================
+             CARD 1 — Cost of Staying
+             ====================================================== -->
+        <div class="voc-card" aria-labelledby="voc-card1-title">
+          <h3 class="voc-card-title" id="voc-card1-title">The Cost of Staying in the Pattern</h3>
+          <p class="voc-card-intro">Where is this repeating pattern already costing you?</p>
+
+          <div class="voc-slider-group" id="voc-cost-sliders">
+            <!-- Sliders are generated by JS below for maintainability -->
+          </div>
+
+          <div class="voc-score-panel" aria-live="polite" aria-atomic="true">
+            <span class="voc-score-label">Pattern Cost Score</span>
+            <div class="voc-score-number">
+              <span id="voc-cost-score">0</span><span class="voc-score-denom">&thinsp;/&thinsp;100</span>
+            </div>
+            <div class="voc-progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Pattern Cost Score" id="voc-cost-track">
+              <div class="voc-progress-fill" id="voc-cost-bar"></div>
+            </div>
+            <div class="voc-score-band" id="voc-cost-band"></div>
+            <div class="voc-score-feedback" id="voc-cost-feedback"></div>
+          </div>
+        </div>
+
+        <!-- ======================================================
+             CARD 2 — Value of Becoming Unownable
+             ====================================================== -->
+        <div class="voc-card" aria-labelledby="voc-card2-title">
+          <h3 class="voc-card-title" id="voc-card2-title">The Value of Becoming Unownable</h3>
+          <p class="voc-card-intro">What would become more available if this pattern no longer owned your response?</p>
+
+          <div class="voc-slider-group" id="voc-value-sliders">
+            <!-- Sliders generated by JS -->
+          </div>
+
+          <div class="voc-score-panel" aria-live="polite" aria-atomic="true">
+            <span class="voc-score-label">Prize Value Score</span>
+            <div class="voc-score-number">
+              <span id="voc-value-score">0</span><span class="voc-score-denom">&thinsp;/&thinsp;100</span>
+            </div>
+            <div class="voc-progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Prize Value Score" id="voc-value-track">
+              <div class="voc-progress-fill" id="voc-value-bar"></div>
+            </div>
+            <div class="voc-score-band" id="voc-value-band"></div>
+            <div class="voc-score-feedback" id="voc-value-feedback"></div>
+          </div>
+        </div>
+
+      </div><!-- /voc-cards-grid -->
+
+      <!-- ======================================================
+           SECTION 4 — COMBINED SUMMARY
+           ====================================================== -->
+      <div class="voc-summary">
+        <div class="voc-summary-panel" aria-live="polite" aria-atomic="true">
+          <h3>Your value reflection</h3>
+
+          <div class="voc-summary-scores">
+            <div class="voc-summary-score-item">
+              <span class="voc-ss-label">Cost Score</span>
+              <div class="voc-ss-number"><span id="voc-sum-cost">0</span><span class="voc-ss-denom">/100</span></div>
+            </div>
+            <div class="voc-summary-score-item">
+              <span class="voc-ss-label">Prize Value Score</span>
+              <div class="voc-ss-number"><span id="voc-sum-value">0</span><span class="voc-ss-denom">/100</span></div>
+            </div>
+            <div class="voc-summary-score-item voc-ss-combined">
+              <span class="voc-ss-label">Combined Reflection Score</span>
+              <div class="voc-ss-number"><span id="voc-sum-combined">0</span><span class="voc-ss-denom">/100</span></div>
+            </div>
+          </div>
+
+          <div class="voc-summary-progress">
+            <div class="voc-progress-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" aria-label="Combined Reflection Score" id="voc-combined-track">
+              <div class="voc-progress-fill" id="voc-combined-bar"></div>
+            </div>
+          </div>
+
+          <div class="voc-summary-band" id="voc-combined-band"></div>
+          <div class="voc-summary-feedback" id="voc-combined-feedback"></div>
+        </div>
+      </div>
+
+    </div><!-- /voc-inner -->
+  </section>
+
+  <div class="voc-divider"></div>
+
+  <!-- ============================================================
+       SECTION 5 — INVESTMENT REFLECTION
+       ============================================================ -->
+  <section class="voc-investment" aria-labelledby="voc-inv-heading">
+    <div class="voc-inner">
+      <div class="voc-investment-box">
+        <h3 id="voc-inv-heading">The investment question</h3>
+
+        <p class="voc-inv-lead">The investment in this work is £3,000.</p>
+
+        <p class="voc-inv-questions">The question is not only:<br><em>"Can I afford to do this?"</em></p>
+
+        <p class="voc-inv-deeper">The deeper question is:<br>"What is the pattern already costing me — and what would become possible if it no longer owned my response?"</p>
+
+        <p class="voc-inv-support">If the cost of staying in the pattern is greater than the cost of doing the work, the investment is not the only risk. Staying where you are is also a decision.</p>
+
+        <!-- CTA — scrolls to #next-step-form -->
+        <button class="voc-btn-primary" onclick="vocScrollToForm(event)">
+          I'm ready to see my next step
+        </button>
+
+        <p class="voc-investment-note">This tool is for reflection only. It does not diagnose, predict or store your answers.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="voc-divider"></div>
+
+  <!-- ============================================================
+       SECTION 6 — FAQ
+       ============================================================ -->
+  <section class="voc-faq" aria-labelledby="voc-faq-heading">
+    <div class="voc-inner">
+      <h2 id="voc-faq-heading" style="text-align:center;">Questions</h2>
+
+      <div class="voc-faq-list" id="voc-faq-list">
+        <!-- FAQ items generated by JS -->
+      </div>
+    </div>
+  </section>
+
+</div><!-- /#voc-widget -->
+
+<script>
+/* ============================================================
+   VALUE OF CHANGE ASSESSMENT — JAVASCRIPT
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   CONFIG — SCROLL TARGET
+   Change FORM_ANCHOR_ID to match your existing form's id.
+   ------------------------------------------------------------ */
+var FORM_ANCHOR_ID = 'next-step-form';
+
+/* ------------------------------------------------------------
+   CONFIG — CARD 1 SLIDER LABELS (Cost of Staying)
+   Labels for sliders 1–10. Each scores 0–10.
+   ------------------------------------------------------------ */
+var COST_LABELS = [
+  'Peace of mind',
+  'Emotional energy',
+  'Relationship closeness',
+  'Clear decisions',
+  'Confidence in what you sense',
+  'Time spent overthinking',
+  'Work, purpose or money opportunities',
+  'Sleep or nervous system steadiness',
+  'The emotional atmosphere you carry for others',
+  'Money spent on external fixes or avoidance'
+];
+
+/* ------------------------------------------------------------
+   CONFIG — CARD 2 SLIDER LABELS (Value of Becoming Unownable)
+   ------------------------------------------------------------ */
+var VALUE_LABELS = [
+  'Clearer boundaries',
+  'Less emotional carrying',
+  'Quicker recovery after difficult interactions',
+  'Stronger self-trust',
+  'Decisions without guilt',
+  'Healthier relationships',
+  'More emotional steadiness',
+  'Acting from what matters now',
+  'Changing what gets passed forward',
+  'Feeling less owned by old patterning'
+];
+
+/* ------------------------------------------------------------
+   CONFIG — SCORE BANDS
+   Each band: [minScore (inclusive), maxScore (inclusive), label, feedback]
+   Bands for card 1 (cost), card 2 (value), and combined.
+   ------------------------------------------------------------ */
+var COST_BANDS = [
+  [0,  24, 'Low visible cost',
+   'This pattern may not feel costly every day, but notice where it still asks for your energy.'],
+  [25, 49, 'Moderate cost',
+   'This pattern is already taking energy, attention or clarity from parts of your life.'],
+  [50, 74, 'High cost',
+   'This pattern is costing you more than a moment. It is affecting your energy, relationships, decisions and opportunities.'],
+  [75, 100, 'Very high cost',
+   'This pattern may be quietly shaping more of your life than it deserves.']
+];
+
+var VALUE_BANDS = [
+  [0,  24, 'Early value',
+   'There may be one clear area where change would matter.'],
+  [25, 49, 'Meaningful value',
+   'The prize is not abstract. Several parts of your life may feel the benefit.'],
+  [50, 74, 'Significant value',
+   'Becoming less owned by the pattern could change how you relate, decide and recover.'],
+  [75, 100, 'Life-changing value',
+   'This is not only about relief. It is about becoming freer to act from what matters now.']
+];
+
+var COMBINED_BANDS = [
+  [0,  24, 'A light reflection',
+   'This may be an early signal rather than an urgent decision. Notice where the pattern still asks for your energy.'],
+  [25, 49, 'Worth noticing',
+   'There is enough here to pause. The pattern may already be costing you more than you have named.'],
+  [50, 74, 'A serious pattern cost',
+   'This looks like more than a passing frustration. The pattern may be affecting your energy, decisions and relationships in meaningful ways.'],
+  [75, 100, 'A high-value change opportunity',
+   'This pattern may be shaping more of your life than it deserves. The value of changing your relationship to it may be significant.']
+];
+
+/* ------------------------------------------------------------
+   CONFIG — PROGRESS BAR COLOURS
+   Corresponds to bands 0–3 (low → very high / early → life-changing).
+   Uses CSS custom property names defined in :root.
+   ------------------------------------------------------------ */
+var BAR_COLOURS = [
+  '#8aaa96',   /* band 0: soft sage */
+  '#b89a5a',   /* band 1: muted gold */
+  '#c87f3a',   /* band 2: warm amber */
+  '#a85050'    /* band 3: muted rose */
+];
+
+/* ------------------------------------------------------------
+   CONFIG — FAQ ITEMS
+   ------------------------------------------------------------ */
+var FAQ_ITEMS = [
+  {
+    q: 'Is this a financial ROI calculator?',
+    a: 'No. This is a Value of Change Assessment. It helps you look at the emotional, relational, energetic and practical cost of a repeating pattern.'
+  },
+  {
+    q: 'Why are we talking about cost?',
+    a: 'Because a repeating pattern rarely costs only feelings. It may cost time, sleep, energy, decisions, relationship closeness, opportunity, money and peace.'
+  },
+  {
+    q: 'Are my answers stored?',
+    a: 'No. The calculator is for you. Your answers are not saved.'
+  },
+  {
+    q: 'What does unownable mean?',
+    a: 'Unownable means the old pattern no longer owns your response. You may still feel things deeply, but you are freer to choose from what matters now.'
+  },
+  {
+    q: 'Do I need the other person involved?',
+    a: 'No. The relationship may reveal the pattern, but the work can begin through you.'
+  },
+  {
+    q: 'What happens after I complete the form?',
+    a: 'You will be directed towards the next step that best fits your readiness.'
+  },
+  {
+    q: 'Is this therapy?',
+    a: 'No. Heidi’s work is not relationship therapy or diagnosis. It is a guided process for understanding the pattern underneath what keeps repeating.'
+  }
+];
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+
+function vocGetBand(score, bands) {
+  for (var i = 0; i < bands.length; i++) {
+    if (score >= bands[i][0] && score <= bands[i][1]) {
+      return { index: i, label: bands[i][2], feedback: bands[i][3] };
+    }
+  }
+  return { index: 0, label: bands[0][2], feedback: bands[0][3] };
+}
+
+/* Smooth scroll to form — falls back gracefully if element not found */
+function vocScrollToForm(e) {
+  if (e) e.preventDefault();
+  var target = document.getElementById(FORM_ANCHOR_ID);
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth' });
+  } else {
+    /* Fallback: try hash navigation */
+    window.location.hash = FORM_ANCHOR_ID;
+  }
+}
+
+/* ============================================================
+   BUILD SLIDERS
+   ============================================================ */
+
+function buildSliders(containerId, labels, idPrefix) {
+  var container = document.getElementById(containerId);
+  if (!container) return;
+
+  labels.forEach(function(label, i) {
+    var sliderId = idPrefix + '_' + i;
+    var fillId   = idPrefix + '_fill_' + i;
+
+    var row = document.createElement('div');
+    row.className = 'voc-slider-row';
+
+    var header = document.createElement('div');
+    header.className = 'voc-slider-header';
+
+    var lbl = document.createElement('label');
+    lbl.className = 'voc-slider-label';
+    lbl.setAttribute('for', sliderId);
+    lbl.textContent = label;
+
+    var val = document.createElement('span');
+    val.className = 'voc-slider-value';
+    val.id = sliderId + '_val';
+    val.textContent = '0';
+    val.setAttribute('aria-hidden', 'true');
+
+    header.appendChild(lbl);
+    header.appendChild(val);
+
+    var trackWrap = document.createElement('div');
+    trackWrap.className = 'voc-slider-track';
+    trackWrap.setAttribute('aria-hidden', 'true');
+
+    var fill = document.createElement('div');
+    fill.className = 'voc-slider-fill';
+    fill.id = fillId;
+    fill.style.width = '0%';
+
+    trackWrap.appendChild(fill);
+
+    var input = document.createElement('input');
+    input.type  = 'range';
+    input.id    = sliderId;
+    input.name  = sliderId;
+    input.min   = '0';
+    input.max   = '10';
+    input.step  = '1';
+    input.value = '0';
+    input.setAttribute('aria-label', label + ' (0 to 10)');
+    input.setAttribute('aria-valuemin', '0');
+    input.setAttribute('aria-valuemax', '10');
+    input.setAttribute('aria-valuenow', '0');
+
+    /* Update display on input */
+    input.addEventListener('input', function() {
+      var v = parseInt(this.value, 10);
+      document.getElementById(sliderId + '_val').textContent = v;
+      document.getElementById(fillId).style.width = (v * 10) + '%';
+      this.setAttribute('aria-valuenow', v);
+      vocRecalculate();
+    });
+
+    row.appendChild(header);
+    row.appendChild(trackWrap);
+    row.appendChild(input);
+    container.appendChild(row);
+  });
+}
+
+/* ============================================================
+   SCORING
+   ============================================================ */
+
+function sumSliders(idPrefix, count) {
+  var total = 0;
+  for (var i = 0; i < count; i++) {
+    var el = document.getElementById(idPrefix + '_' + i);
+    if (el) total += parseInt(el.value, 10);
+  }
+  return total;
+}
+
+function updateCard(scoreEl, barEl, trackEl, bandEl, feedbackEl, score, bands) {
+  /* Score number */
+  document.getElementById(scoreEl).textContent = score;
+
+  /* Progress bar */
+  var pct = score;
+  var bar = document.getElementById(barEl);
+  bar.style.width = pct + '%';
+
+  /* Colour by band */
+  var band = vocGetBand(score, bands);
+  bar.style.backgroundColor = BAR_COLOURS[band.index];
+
+  /* Track aria */
+  var track = document.getElementById(trackEl);
+  track.setAttribute('aria-valuenow', score);
+
+  /* Band label and feedback */
+  document.getElementById(bandEl).textContent = band.label;
+  document.getElementById(feedbackEl).textContent = band.feedback;
+}
+
+function vocRecalculate() {
+  var costScore  = sumSliders('voc_cost', COST_LABELS.length);
+  var valueScore = sumSliders('voc_value', VALUE_LABELS.length);
+  var combined   = Math.round((costScore + valueScore) / 2);
+
+  /* Update card 1 */
+  updateCard(
+    'voc-cost-score', 'voc-cost-bar', 'voc-cost-track',
+    'voc-cost-band', 'voc-cost-feedback',
+    costScore, COST_BANDS
+  );
+
+  /* Update card 2 */
+  updateCard(
+    'voc-value-score', 'voc-value-bar', 'voc-value-track',
+    'voc-value-band', 'voc-value-feedback',
+    valueScore, VALUE_BANDS
+  );
+
+  /* Update combined summary */
+  document.getElementById('voc-sum-cost').textContent    = costScore;
+  document.getElementById('voc-sum-value').textContent   = valueScore;
+  document.getElementById('voc-sum-combined').textContent = combined;
+
+  var combBar   = document.getElementById('voc-combined-bar');
+  combBar.style.width = combined + '%';
+  var combBand  = vocGetBand(combined, COMBINED_BANDS);
+  combBar.style.backgroundColor = BAR_COLOURS[combBand.index];
+  document.getElementById('voc-combined-track').setAttribute('aria-valuenow', combined);
+  document.getElementById('voc-combined-band').textContent    = combBand.label;
+  document.getElementById('voc-combined-feedback').textContent = combBand.feedback;
+}
+
+/* ============================================================
+   BUILD FAQ
+   ============================================================ */
+
+function buildFAQ() {
+  var list = document.getElementById('voc-faq-list');
+  if (!list) return;
+
+  FAQ_ITEMS.forEach(function(item, i) {
+    var faqId   = 'voc-faq-' + i;
+    var panelId = 'voc-faq-panel-' + i;
+
+    var div = document.createElement('div');
+    div.className = 'voc-faq-item';
+    div.setAttribute('itemscope', '');
+    div.setAttribute('itemtype', 'https://schema.org/Question');
+
+    var btn = document.createElement('button');
+    btn.className = 'voc-faq-button';
+    btn.id        = faqId;
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', panelId);
+    btn.setAttribute('type', 'button');
+
+    var qText = document.createElement('span');
+    qText.textContent = item.q;
+    qText.setAttribute('itemprop', 'name');
+
+    var icon = document.createElement('span');
+    icon.className  = 'voc-faq-icon';
+    icon.setAttribute('aria-hidden', 'true');
+
+    btn.appendChild(qText);
+    btn.appendChild(icon);
+
+    var answer = document.createElement('div');
+    answer.className = 'voc-faq-answer';
+    answer.id        = panelId;
+    answer.setAttribute('role', 'region');
+    answer.setAttribute('aria-labelledby', faqId);
+    answer.setAttribute('itemscope', '');
+    answer.setAttribute('itemtype', 'https://schema.org/Answer');
+
+    var p = document.createElement('p');
+    p.textContent = item.a;
+    p.setAttribute('itemprop', 'text');
+
+    answer.appendChild(p);
+
+    /* Toggle behaviour */
+    btn.addEventListener('click', function() {
+      var expanded = btn.getAttribute('aria-expanded') === 'true';
+      /* Close all others */
+      list.querySelectorAll('.voc-faq-button').forEach(function(b) {
+        b.setAttribute('aria-expanded', 'false');
+        document.getElementById(b.getAttribute('aria-controls')).classList.remove('voc-open');
+      });
+      /* Open this one if it was closed */
+      if (!expanded) {
+        btn.setAttribute('aria-expanded', 'true');
+        answer.classList.add('voc-open');
+      }
+    });
+
+    /* Keyboard: space/enter handled natively by button, but allow escape to close */
+    btn.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        btn.setAttribute('aria-expanded', 'false');
+        answer.classList.remove('voc-open');
+        btn.focus();
+      }
+    });
+
+    div.appendChild(btn);
+    div.appendChild(answer);
+    list.appendChild(div);
+  });
+}
+
+/* ============================================================
+   INITIALISE
+   ============================================================ */
+
+document.addEventListener('DOMContentLoaded', function() {
+  buildSliders('voc-cost-sliders',  COST_LABELS,  'voc_cost');
+  buildSliders('voc-value-sliders', VALUE_LABELS, 'voc_value');
+  buildFAQ();
+  /* Run once to set initial band labels at score 0 */
+  vocRecalculate();
+});
+</script>
+
+</body>
+</html>
